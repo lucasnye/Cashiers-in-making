@@ -1,0 +1,15 @@
+# Web framework
+django==5.2.3
+
+# WebSockets support
+channels==4.2.0
+
+# ASGI server
+daphne==4.2.0
+
+# Whisper-based transcription
+faster-whisper==1.1.1
+
+# Dependencies for audio processing
+numpy==2.3.0
+soundfile==0.13.1

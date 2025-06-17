@@ -1,0 +1,115 @@
+{% extends "edtech/layout.html" %}
+
+{% block title %}
+    Real Time Transcription
+{% endblock %}
+
+
+{% block body %}
+
+    <h1>Real Time Transcription</h1>
+    <h6>Records and automatically transcribes what you or others are saying in real time!</h6>
+
+    <button id="startBtn" class="btn">Start Recording</button>
+    <button id="stopBtn" class="btn" disabled>Stop Recording</button>
+    <div id="transcript">Ready for transcription...</div>
+
+    <script>
+        const transcriptEl = document.getElementById('transcript');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        
+        let ws;
+        let audioContext;
+        let mediaStream;
+        let audioProcessor;
+
+        const stopRecording = () => {
+            if (audioProcessor) {
+                audioProcessor.disconnect();
+                audioProcessor = null;
+            }
+            
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            startBtn.classList.remove('recording');
+            stopBtn.classList.add('stopped');
+            transcriptEl.textContent += "\n\n[Recording stopped]";
+        };
+
+        startBtn.onclick = async () => {
+            try {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                startBtn.classList.add('recording');
+                stopBtn.classList.remove('stopped');
+                transcriptEl.textContent = "Initializing...";
+                
+                // Get microphone access
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Setup WebSocket
+                ws = new WebSocket(`ws://${window.location.host}/ws/live_stt/`);
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.transcription) {
+                            transcriptEl.textContent += data.transcription + " ";
+                            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+                        }
+                    } catch (e) {
+                        console.error("Message parse error:", e);
+                    }
+                };
+                
+                ws.onopen = () => {
+                    transcriptEl.textContent = "Listening...\n";
+                };
+                
+                ws.onerror = (e) => console.error("WebSocket error:", e);
+                
+                // Audio processing
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000
+                });
+                
+                audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                audioProcessor.onaudioprocess = (e) => {
+                    if (ws?.readyState === WebSocket.OPEN) {
+                        const audioData = e.inputBuffer.getChannelData(0);
+                        ws.send(new Int16Array(audioData.map(x => x * 32767)).buffer);
+                    }
+                };
+                
+                audioContext.createMediaStreamSource(mediaStream)
+                    .connect(audioProcessor);
+                audioProcessor.connect(audioContext.destination);
+                
+            } catch (err) {
+                transcriptEl.textContent = "Error: " + err.message;
+                stopRecording();
+            }
+        };
+
+        stopBtn.onclick = stopRecording;
+        window.addEventListener('beforeunload', stopRecording);
+    </script>
+
+{% endblock %}
