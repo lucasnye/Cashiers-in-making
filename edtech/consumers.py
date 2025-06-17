@@ -15,6 +15,9 @@ from PyPDF2 import PdfReader
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import black, HexColor
 from reportlab.pdfgen import canvas
+import base64
+from io import BytesIO
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 class LiveSTTConsumer(AsyncWebsocketConsumer):
     """
@@ -85,49 +88,88 @@ class LiveSTTConsumer(AsyncWebsocketConsumer):
             }))
 
 
+class DyslexiaPDFWebSocketConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pdf_buffer = BytesIO()
+        self.receiving = False
 
-class DyslexiaPDFConverter:
-    def __init__(self, input_path):
-        self.input_path = input_path
-        self.buffer = BytesIO()
-        self.text = ""
+    async def connect(self):
+        await self.accept()
+        await self.send(text_data=json.dumps({"status": "connected"}))
 
-    def extract_text(self):
-        reader = PdfReader(self.input_path)
-        self.text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    async def disconnect(self, close_code):
+        self.pdf_buffer.close()
 
-    def normalize_and_wrap(self, max_chars_per_line=90):
-        normalized_text = ' '.join(self.text.split())
-        return textwrap.wrap(normalized_text, width=max_chars_per_line)
+    async def receive(self, text_data=None, bytes_data=None):
+        if text_data:
+            message = json.loads(text_data)
+            if message.get("type") == "start_upload":
+                self.receiving = True
+                self.pdf_buffer = BytesIO()
+                await self.send(text_data=json.dumps({"status": "ready_for_pdf"}))
+            elif message.get("type") == "end_upload":
+                self.receiving = False
+                await self.handle_pdf_processing()
+        elif bytes_data and self.receiving:
+            self.pdf_buffer.write(bytes_data)
 
-    def generate_pdf(self):
-        p = canvas.Canvas(self.buffer, pagesize=letter)
-        width, height = letter
+    async def handle_pdf_processing(self):
+        self.pdf_buffer.seek(0)
 
-        wrapped_lines = self.normalize_and_wrap()
+        try:
+            # Extract text
+            reader = PdfReader(self.pdf_buffer)
+            full_text = ""
+            for page in reader.pages:
+                full_text += page.extract_text() + "\n"
 
-        def new_page():
-            p.setFillColor(HexColor("#F5F5DC"))
+            # Normalize spacing
+            normalized_text = ' '.join(full_text.split())
+
+            # Prepare dyslexia-friendly PDF
+            output = BytesIO()
+            p = canvas.Canvas(output, pagesize=letter)
+            width, height = letter
+
+            p.setFillColor(HexColor("#F5F5DC"))  # Beige background
             p.rect(0, 0, width, height, fill=1)
             p.setFont("Helvetica", 14)
             p.setFillColor(black)
-            textobj = p.beginText(50, height - 50)
-            textobj.setCharSpace(1.5)
-            textobj.setWordSpace(5)
-            textobj.setLeading(22)
-            return textobj
 
-        textobject = new_page()
+            textobject = p.beginText(50, height - 50)
+            textobject.setCharSpace(1.5)
+            textobject.setWordSpace(5)
+            textobject.setLeading(22)
 
-        for line in wrapped_lines:
-            if textobject.getY() < 50:
-                p.drawText(textobject)
-                p.showPage()
-                textobject = new_page()
-            textobject.textLine(line)
+            wrapped_lines = textwrap.wrap(normalized_text, width=90)
+            for line in wrapped_lines:
+                if textobject.getY() < 50:
+                    p.drawText(textobject)
+                    p.showPage()
+                    p.setFillColor(HexColor("#F5F5DC"))
+                    p.rect(0, 0, width, height, fill=1)
+                    p.setFont("Helvetica", 14)
+                    p.setFillColor(black)
+                    textobject = p.beginText(50, height - 50)
+                    textobject.setCharSpace(1.5)
+                    textobject.setWordSpace(5)
+                    textobject.setLeading(22)
+                textobject.textLine(line)
 
-        p.drawText(textobject)
-        p.showPage()
-        p.save()
-        self.buffer.seek(0)
-        return self.buffer
+            p.drawText(textobject)
+            p.showPage()
+            p.save()
+            output.seek(0)
+
+            # Encode and return PDF
+            encoded_pdf = base64.b64encode(output.read()).decode("utf-8")
+            await self.send(text_data=json.dumps({
+                "status": "complete",
+                "pdf_base64": encoded_pdf
+            }))
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                "status": "error",
+                "message": str(e)
+            }))
