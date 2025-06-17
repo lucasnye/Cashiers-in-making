@@ -5,4 +5,4 @@ def index(request):
 def real_time_transcription(request):
     return render(request, "edtech/rtt.html")
 def dyslexia_format(request):
-    return render(request, "edtech/dyslexia_upload")
+    return render(request, "edtech/dyslexia_upload.html")
