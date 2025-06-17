@@ -1,3 +1,4 @@
+# for STT
 import json
 import numpy as np
 import soundfile as sf
@@ -5,6 +6,15 @@ from io import BytesIO
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
 from faster_whisper import WhisperModel
+
+# for dyslexia 
+import os
+import textwrap
+from io import BytesIO
+from PyPDF2 import PdfReader
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.colors import black, HexColor
+from reportlab.pdfgen import canvas
 
 class LiveSTTConsumer(AsyncWebsocketConsumer):
     """
@@ -73,3 +83,51 @@ class LiveSTTConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'error': str(e)
             }))
+
+
+
+class DyslexiaPDFConverter:
+    def __init__(self, input_path):
+        self.input_path = input_path
+        self.buffer = BytesIO()
+        self.text = ""
+
+    def extract_text(self):
+        reader = PdfReader(self.input_path)
+        self.text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    def normalize_and_wrap(self, max_chars_per_line=90):
+        normalized_text = ' '.join(self.text.split())
+        return textwrap.wrap(normalized_text, width=max_chars_per_line)
+
+    def generate_pdf(self):
+        p = canvas.Canvas(self.buffer, pagesize=letter)
+        width, height = letter
+
+        wrapped_lines = self.normalize_and_wrap()
+
+        def new_page():
+            p.setFillColor(HexColor("#F5F5DC"))
+            p.rect(0, 0, width, height, fill=1)
+            p.setFont("Helvetica", 14)
+            p.setFillColor(black)
+            textobj = p.beginText(50, height - 50)
+            textobj.setCharSpace(1.5)
+            textobj.setWordSpace(5)
+            textobj.setLeading(22)
+            return textobj
+
+        textobject = new_page()
+
+        for line in wrapped_lines:
+            if textobject.getY() < 50:
+                p.drawText(textobject)
+                p.showPage()
+                textobject = new_page()
+            textobject.textLine(line)
+
+        p.drawText(textobject)
+        p.showPage()
+        p.save()
+        self.buffer.seek(0)
+        return self.buffer
