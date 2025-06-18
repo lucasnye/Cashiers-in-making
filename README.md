@@ -19,7 +19,7 @@ Accessible EdTech is a Django-based web application designed to enhance accessib
 ## ⚙️ Setup Instructions
 1. **Clone the Repository**
 2. **Create a Virtual Environment**
-3. **Install Dependencies**
+3. **Install Dependencies** (Dependencies from 'requirements.txt' and 'requirements2.txt' should suffice)
 4. **Apply Migrations**
 5. **Run the Server**
 
