@@ -1,0 +1,26 @@
+{% extends "edtech/layout.html" %} {% load static %} {% block title %} Text to
+ASL Video Converter {% endblock %} {% block body %}
+<h1>Text to ASL Video Converter</h1>
+
+<div class="container">
+  <div class="form-section">
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="text_input">Enter Text:</label>
+      <input type="text" id="text_input" name="text_input" required />
+
+      <button type="submit">Convert to Video</button>
+    </form>
+  </div>
+
+  <div class="video-section">
+    {% if video_url %}
+    <label>Generated ASL Video:</label>
+    <video controls>
+      <source src="{{ video_url }}" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
