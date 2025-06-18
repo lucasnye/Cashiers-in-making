@@ -1,5 +1,5 @@
 import os, nltk
-from moviepy.editor import concatenate_videoclips, VideoFileClip
+# from moviepy.editor import concatenate_videoclips, VideoFileClip
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 
@@ -23,6 +23,7 @@ class ASLVideoGenerator:
         return [w for w,t in tagged if t not in self.UNNECESSARY_TAGS and w not in self.REMOVE_WORDS]
 
     def get_video_sequence(self, gloss_words):
+        from moviepy.editor import VideoFileClip
         clips = []
         for w in gloss_words:
             lw = w.strip().lower()
@@ -35,6 +36,7 @@ class ASLVideoGenerator:
         return clips
 
     def generate_video(self, text, output_path=None):
+        from moviepy.editor import concatenate_videoclips
         gloss = self.text_to_gloss(text)
         clips = self.get_video_sequence(gloss)
         if not clips:

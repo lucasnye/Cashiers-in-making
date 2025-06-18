@@ -21,8 +21,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include("edtech.urls"))
-    path("asl-converter/", views.asl_converter, name="asl_converter")
+    path('', include("edtech.urls")),
 ]
 
 if settings.DEBUG:
