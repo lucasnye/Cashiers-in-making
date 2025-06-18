@@ -39,7 +39,9 @@ Key libraries used in this project include:
 - nltk, PyPDF2, pdfplumber, docx
 - soundfile, numpy, requests
 
-See `requirements.txt` for the full list.
+## Bugs / Things to Note
+1. Our team mate, Ng Si Han, did not manage to join our DevPost team in time as he is doing reservist right now.
+2. There might be a macOS error for our text-to-ASL feature (if you are using macOS). It triggers MoviePy to open a preview window or interact with the system GUI, especially on macOS. This can cause the error: NSInternalInconsistencyException: setting the main menu on a non-main thread because MoviePy (via imageio or pygame) tries to access macOS GUI APIs from a background thread, which is not allowed.
 
 ## 📄 License
 This project is licensed under the MIT License. See the LICENSE file for details.
