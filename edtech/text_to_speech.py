@@ -51,6 +51,3 @@ def text_to_speech(text):
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
-
-if __name__ == "__main__":
-    pass

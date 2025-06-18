@@ -1,0 +1,23 @@
+{% extends 'edtech/layout.html' %}
+
+{% block title %}
+    Text-to-Speech Converter
+{% endblock %}
+
+{% block body %}
+  <h2>Text-to-Speech Converter</h2>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="file">Upload file (.txt, .pdf, .docx):</label>
+    <input type="file" name="file" required>
+    <button type="submit">Convert</button>
+  </form>
+
+  {% if audio_url %}
+    <h3>Generated Audio:</h3>
+    <audio controls>
+      <source src="{{ audio_url }}" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+  {% endif %}
+{% endblock %}
