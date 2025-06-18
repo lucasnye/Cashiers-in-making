@@ -4,7 +4,67 @@ def index(request):
     return render(request, "edtech/index.html")
 def real_time_transcription(request):
     return render(request, "edtech/rtt.html")
+
+# Dyslexia formatting 
+import os
+import textwrap
+from io import BytesIO
+
+from django.http import FileResponse
+from django.core.files.storage import FileSystemStorage
+
+from PyPDF2 import PdfReader
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import black, HexColor
+
 def dyslexia_format(request):
+    if request.method == 'POST' and request.FILES.get('pdf'):
+        uploaded_file = request.FILES['pdf']
+        fs = FileSystemStorage()
+        filename = fs.save(uploaded_file.name, uploaded_file)
+        file_path = fs.path(filename)
+
+        # Extract text
+        reader = PdfReader(file_path)
+        full_text = ""
+        for page in reader.pages:
+            full_text += page.extract_text() + "\n"
+
+        # Normalize
+        normalized_text = ' '.join(full_text.split())
+
+        # Convert to dyslexia-friendly PDF
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+
+        def init_text_object():
+            p.setFillColor(HexColor("#F5F5DC"))
+            p.rect(0, 0, width, height, fill=1)
+            p.setFont("Helvetica", 14)
+            p.setFillColor(black)
+            textobject = p.beginText(50, height - 50)
+            textobject.setCharSpace(1.5)
+            textobject.setWordSpace(5)
+            textobject.setLeading(22)
+            return textobject
+
+        textobject = init_text_object()
+        for line in textwrap.wrap(normalized_text, width=90):
+            if textobject.getY() < 50:
+                p.drawText(textobject)
+                p.showPage()
+                textobject = init_text_object()
+            textobject.textLine(line)
+
+        p.drawText(textobject)
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        os.remove(file_path)
+
+        return FileResponse(buffer, as_attachment=True, filename='dyslexia_friendly.pdf')
     return render(request, "edtech/dyslexia_upload.html")
 
 
