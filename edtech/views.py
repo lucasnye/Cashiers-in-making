@@ -127,3 +127,29 @@ def text_to_speech_view(request):
     return render(request, 'edtech/text_to_speech.html', {
         'audio_url': audio_url
     })
+
+from django.shortcuts import render
+import os, shutil
+from django.shortcuts import render
+from django.conf import settings
+from .text_to_ASL import ASLVideoGenerator
+
+def asl_converter(request):
+    video_url = None
+    if request.method == "POST":
+        text = request.POST.get("text_input", "")
+        if text:
+            BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+            asset_folder = os.path.join(BASE_DIR, 'assets', 'renamed_videos')
+
+            generator = ASLVideoGenerator(asset_folder)
+            output_path = os.path.join(settings.MEDIA_ROOT, "output.mp4")
+            temp_output = generator.generate_video(text, output_path="temp_output.mp4")
+
+            if temp_output and os.path.exists(temp_output):
+                os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+                shutil.move(temp_output, output_path)
+                video_url = settings.MEDIA_URL + "output.mp4"
+
+    return render(request, "edtech/asl_converter.html", {"video_url": video_url})
