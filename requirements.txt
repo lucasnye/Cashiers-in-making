@@ -13,3 +13,7 @@ faster-whisper==1.1.1
 # Dependencies for audio processing
 numpy==2.3.0
 soundfile==0.13.1
+
+gTTS
+python-docx
+PyPDF2

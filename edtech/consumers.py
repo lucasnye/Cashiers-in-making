@@ -173,3 +173,72 @@ class DyslexiaPDFWebSocketConsumer(AsyncWebsocketConsumer):
                 "status": "error",
                 "message": str(e)
             }))
+
+
+
+
+import json
+import os
+import uuid
+import pdfplumber
+import docx
+from gtts import gTTS
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+class TextExtractionConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+        await self.send(text_data=json.dumps({
+            'message': 'Connected to text extractor.'
+        }))
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        file_path = data.get('file_path')
+
+        if not file_path or not os.path.exists(file_path):
+            await self.send(text_data=json.dumps({
+                'error': 'Invalid file path.'
+            }))
+            return
+
+        # 1. Extract text
+        extracted_text = self.extract_text_from_file(file_path)
+
+        # 2. Convert to speech and save as mp3
+        audio_rel_path = self.convert_text_to_speech(extracted_text)
+
+        # 3. Send both text and audio path back
+        await self.send(text_data=json.dumps({
+            'extracted_text': extracted_text,
+            'audio_url': f'/static/{audio_rel_path}'  # Django serves from /static/
+        }))
+
+    def extract_text_from_file(self, file_path):
+        if file_path.endswith('.pdf'):
+            return self._extract_pdf(file_path)
+        elif file_path.endswith('.docx'):
+            return self._extract_docx(file_path)
+        else:
+            return "Unsupported file type."
+
+    def _extract_pdf(self, path):
+        text = ''
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() or ''
+        return text.strip()
+
+    def _extract_docx(self, path):
+        doc = docx.Document(path)
+        return '\n'.join([para.text for para in doc.paragraphs]).strip()
+
+    def convert_text_to_speech(self, text, lang='en'):
+        filename = f"{uuid.uuid4().hex}.mp3"
+        audio_dir = os.path.join(settings.MEDIA_ROOT, 'audio')
+        os.makedirs(audio_dir, exist_ok=True)  # ensure the directory exists
+        audio_path = os.path.join(audio_dir, 'output.mp3')  # or use a dynamic filename
+        tts = gTTS(text=text, lang=lang)
+        tts.save(audio_path)
+
+        return f'audio/{filename}'  # return path relative to /static/
