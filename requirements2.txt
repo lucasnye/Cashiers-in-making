@@ -52,6 +52,7 @@ pypdfium2==4.30.1
 python-dotenv==1.1.0
 PyYAML==6.0.2
 regex==2024.11.6
+reportlab==4.4.1
 requests==2.32.4
 service-identity==24.2.0
 setuptools==80.9.0
